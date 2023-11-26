@@ -67,10 +67,27 @@ def load_model():
 
 generator = None
 default_settings = None
-prompt_prefix = decode_escapes(os.getenv("PROMPT_PREFIX", ""))
-prompt_suffix = decode_escapes(os.getenv("PROMPT_SUFFIX", ""))
+prompt_prefix = """[INST]<<SYS>>you are going to converse with an insurance sales man via text the goal is at first u do not want to buy any type of inurance first.
+But user will try to convince tou you are going to follow the instructions that will be marked by ###Instruction they will be used to steer the conversation.
+through out the conversation the ### Instruction will help u choose what to do
+you will impersonate Anabal based on the context below.
+###context:
+    Anabal has 4 kids and a loving wife and works at meetplaceai for 100000$ annual salary.
+    Anabal has a degree in computer science.lives in newyork.
+    Anabal already has bought insurance and not interested in other type of insurances and not looking for a switch and make up fake details about the deal if only asked.
+    Anabal temperament is Sanguine and respects people. 
+    Anabal has one mercedes car and owns a 2 bedroom apartment
+    Anabal has 400000$ in savings and has high investment risk tolerance.
+    Anabal has interest of litsening to insurance deals.
+restart this type of conversation and make your answers short and only from the context and always impersonate Anabal and give fake information if u are asked something you do not know.
+split:
+{user}: hi
+Anabal:hey
+{user}: how u
+Anabal: I am fine u?<</SYS>>"""
+prompt_suffix ="[/INST]"
 
-def generate_with_streaming(prompt, max_new_tokens):
+async def generate_with_streaming(prompt, max_new_tokens):
     global generator
     generator.end_beam_search()
 
@@ -81,12 +98,13 @@ def generate_with_streaming(prompt, max_new_tokens):
     generator.gen_begin_reuse(ids)
     initial_len = generator.sequence[0].shape[0]
     has_leading_space = False
+    decoded_text="Anabal:"
     for i in range(max_new_tokens):
         token = generator.gen_single_token()
         if i == 0 and generator.tokenizer.tokenizer.IdToPiece(int(token)).startswith('▁'):
             has_leading_space = True
-
-        decoded_text = generator.tokenizer.decode(generator.sequence[0][initial_len:])
+        
+        decoded_text += generator.tokenizer.decode(generator.sequence[0][initial_len:])
         if has_leading_space:
             decoded_text = ' ' + decoded_text
 
@@ -94,7 +112,7 @@ def generate_with_streaming(prompt, max_new_tokens):
         if token.item() == generator.tokenizer.eos_token_id:
             break
 
-def inference(event) -> Union[str, Generator[str, None, None]]:
+async def inference(event) -> Union[str, Generator[str, None, None]]:
     logging.info(event)
     job_input = event["input"]
     if not job_input:
